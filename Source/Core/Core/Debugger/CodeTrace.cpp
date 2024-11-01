@@ -12,7 +12,9 @@
 #include "Core/Debugger/PPCDebugInterface.h"
 #include "Core/HW/CPU.h"
 #include "Core/PowerPC/PowerPC.h"
+#include "Core/PowerPC/MMU.h"
 #include "Core/System.h"
+#include <Core/HW/SMBMod/SMBMain.h>
 
 namespace
 {

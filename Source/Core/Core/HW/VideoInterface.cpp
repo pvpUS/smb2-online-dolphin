@@ -34,6 +34,7 @@
 #include "VideoCommon/VideoBackendBase.h"
 #include "VideoCommon/VideoConfig.h"
 #include "VideoCommon/VideoEvents.h"
+#include <Core/HW/SMBMod/SMBMain.h>
 
 namespace VideoInterface
 {
@@ -848,6 +849,7 @@ void VideoInterfaceManager::EndField(FieldType field, u64 ticks)
 // Run when: When a frame is scanned (progressive/interlace)
 void VideoInterfaceManager::Update(u64 ticks)
 {
+  //SMBMain::frameLoop();
   // Movie's frame counter should be updated before actually rendering the frame,
   // in case frame counter display is enabled
 

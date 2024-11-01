@@ -28,6 +28,7 @@
 #include "VideoCommon/BPMemory.h"
 #include "VideoCommon/CommandProcessor.h"
 #include "VideoCommon/VideoCommon.h"
+#include <Core/HW/SMBMod/SMBMain.h>
 
 // We need to include TextureDecoder.h for the texMem array.
 // TODO: Move texMem somewhere else so this isn't an issue.

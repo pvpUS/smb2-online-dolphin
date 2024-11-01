@@ -75,6 +75,7 @@
 
 #include "VideoCommon/VideoBackendBase.h"
 #include "VideoCommon/VideoConfig.h"
+#include <Core/HW/SMBMod/SMBMain.h>
 
 // The chunk to allocate movie data in multiples of.
 #define DTM_BASE_LENGTH (1024)
@@ -185,6 +186,7 @@ std::string MovieManager::GetRerecords() const
 
 void MovieManager::FrameUpdate()
 {
+  SMBMain::frameLoop();
   m_current_frame++;
   if (!m_polled)
     m_current_lag_count++;
@@ -203,6 +205,11 @@ void MovieManager::FrameUpdate()
 // NOTE: EmuThread
 void MovieManager::Init(const BootParameters& boot)
 {
+  if (SMBMain::frame_count != 0)
+  {
+    SMBMain::frame_count = 1;
+  }
+
   if (std::holds_alternative<BootParameters::Disc>(boot.parameters))
     m_current_file_name = std::get<BootParameters::Disc>(boot.parameters).path;
   else

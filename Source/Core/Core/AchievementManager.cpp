@@ -925,7 +925,8 @@ void AchievementManager::Request(const rc_api_request_t* request,
 // This is done to validate/invalidate each memory reference in the downloaded assets, mark assets
 // as unsupported, and notify the player upon startup that there are unsupported assets and how
 // many. As such, all that call needs to do is return the number of bytes that can be read with this
-// call. As only the CPU and host threads are allowed to read from memory, I provide a separate
+// call. As only the CPU and host threads are allowed to 
+//  memory, I provide a separate
 // method for this verification. In lieu of a more convenient set of steps, I provide MemoryVerifier
 // to rc_client at construction, and in the Load Game callback, after the verification has been
 // complete, I call rc_client_set_read_memory_function to switch to the usual MemoryPeeker for all

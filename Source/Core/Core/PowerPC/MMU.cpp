@@ -447,7 +447,7 @@ void MMU::WriteToHardware(u32 em_address, const u32 data, const u32 size)
     return;
   }
 
-  PanicAlertFmt("Unable to resolve write address {:x} PC {:x}", em_address, m_ppc_state.pc);
+  //PanicAlertFmt("Unable to resolve write address {:x} PC {:x}", em_address, m_ppc_state.pc);
   if (m_system.IsPauseOnPanicMode())
   {
     m_system.GetCPU().Break();
@@ -1274,8 +1274,8 @@ void MMU::GenerateDSIException(u32 effective_address, bool write)
   // DSI exceptions are only supported in MMU mode.
   if (!m_system.IsMMUMode())
   {
-    PanicAlertFmt("Invalid {} {:#010x}, PC = {:#010x}", write ? "write to" : "read from",
-                  effective_address, m_ppc_state.pc);
+    //PanicAlertFmt("Invalid {} {:#010x}, PC = {:#010x}", write ? "write to" : "read from",
+    //              effective_address, m_ppc_state.pc);
     if (m_system.IsPauseOnPanicMode())
     {
       m_system.GetCPU().Break();

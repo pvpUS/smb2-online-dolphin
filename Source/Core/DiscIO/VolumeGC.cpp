@@ -26,6 +26,7 @@
 #include "DiscIO/FileSystemGCWii.h"
 #include "DiscIO/Filesystem.h"
 #include "DiscIO/Volume.h"
+#include <Core/HW/SMBMod/SMBMain.h>
 
 namespace DiscIO
 {
@@ -47,6 +48,20 @@ VolumeGC::~VolumeGC()
 
 bool VolumeGC::Read(u64 offset, u64 length, u8* buffer, const Partition& partition) const
 {
+  if (offset >= 0x40000000)
+  {
+    for (int i = 0; i < SMBMain::starting_offsets.size(); ++i)
+    {
+      if (offset >= SMBMain::starting_offsets[i] &&
+          offset < SMBMain::starting_offsets[i] + 0x1000000)
+      {
+        SMBMain::stageInjection(offset, length, buffer);
+        return true;
+        // PanicAlertFmt("{:x}, {:x}", offset, length);
+      }
+    }
+  }
+
   if (partition != PARTITION_NONE)
     return false;
 

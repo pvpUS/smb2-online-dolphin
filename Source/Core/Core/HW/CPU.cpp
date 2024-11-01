@@ -15,8 +15,10 @@
 #include "Core/Host.h"
 #include "Core/PowerPC/GDBStub.h"
 #include "Core/PowerPC/PowerPC.h"
+#include "Core/PowerPC/MMU.h"
 #include "Core/System.h"
 #include "VideoCommon/Fifo.h"
+#include <Core/HW/SMBMod/SMBMain.h>
 
 namespace CPU
 {
@@ -63,6 +65,7 @@ void CPUManager::ExecutePendingJobs(std::unique_lock<std::mutex>& state_lock)
   }
 }
 
+// Add memory code here?
 void CPUManager::Run()
 {
   auto& power_pc = m_system.GetPowerPC();
@@ -79,6 +82,7 @@ void CPUManager::Run()
     CPUThreadConfigCallback::CheckForConfigChanges();
 
     Common::Event gdb_step_sync_event;
+
     switch (m_state)
     {
     case State::Running:
@@ -98,11 +102,13 @@ void CPUManager::Run()
           PowerPC::CoreMode old_mode = power_pc.GetMode();
           power_pc.SetMode(PowerPC::CoreMode::Interpreter);
           power_pc.SingleStep();
+          
+          
           power_pc.SetMode(old_mode);
           m_state = State::Running;
         }
       }
-
+      //SMBMain::frameLoop();
       // Enter a fast runloop
       power_pc.RunLoop();
 
@@ -153,6 +159,7 @@ void CPUManager::Run()
       state_lock.unlock();
 
       power_pc.SingleStep();
+      
 
       state_lock.lock();
       m_state_cpu_thread_active = false;

@@ -34,6 +34,7 @@
 #include "Core/PowerPC/MMU.h"
 #include "Core/PowerPC/PowerPC.h"
 #include "Core/System.h"
+#include <Core/HW/SMBMod/SMBMain.h>
 
 #include "DiscIO/Enums.h"
 #include "DiscIO/RiivolutionPatcher.h"
@@ -63,9 +64,11 @@ void CBoot::RunFunction(Core::System& system, u32 address)
 
   ppc_state.pc = address;
   LR(ppc_state) = 0x00;
-
+  Core::CPUThreadGuard guard(Core::System::GetInstance());
   while (ppc_state.pc != 0x00)
+  {
     power_pc.SingleStep();
+  }
 }
 
 void CBoot::SetupMSR(PowerPC::PowerPCState& ppc_state)

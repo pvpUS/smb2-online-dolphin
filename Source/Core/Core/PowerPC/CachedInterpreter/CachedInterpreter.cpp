@@ -15,6 +15,7 @@
 #include "Core/PowerPC/PPCAnalyst.h"
 #include "Core/PowerPC/PowerPC.h"
 #include "Core/System.h"
+#include <Core/HW/SMBMod/SMBMain.h>
 
 struct CachedInterpreter::Instruction
 {
@@ -162,7 +163,6 @@ void CachedInterpreter::Run()
     // Start new timing slice
     // NOTE: Exceptions may change PC
     core_timing.Advance();
-
     do
     {
       ExecuteOneBlock();

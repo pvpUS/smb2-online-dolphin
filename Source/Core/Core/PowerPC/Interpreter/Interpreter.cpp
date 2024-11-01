@@ -26,6 +26,7 @@
 #include "Core/PowerPC/PPCTables.h"
 #include "Core/PowerPC/PowerPC.h"
 #include "Core/System.h"
+#include <Core/HW/SMBMod/SMBMain.h>
 
 namespace
 {
@@ -295,6 +296,7 @@ void Interpreter::Run()
           }
           cycles += SingleStepInner();
         }
+        
         m_ppc_state.downcount -= cycles;
       }
     }

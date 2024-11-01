@@ -17,6 +17,7 @@
 #include "Core/PowerPC/MMU.h"
 #include "Core/PowerPC/PowerPC.h"
 #include "Core/System.h"
+#include "Common/MsgHandler.h"
 
 static u32 Helper_Get_EA(const PowerPC::PowerPCState& ppcs, const UGeckoInstruction inst)
 {
@@ -649,6 +650,7 @@ void Interpreter::lbzux(Interpreter& interpreter, UGeckoInstruction inst)
   }
 }
 
+// Load byte
 void Interpreter::lbzx(Interpreter& interpreter, UGeckoInstruction inst)
 {
   auto& ppc_state = interpreter.m_ppc_state;
@@ -801,6 +803,7 @@ void Interpreter::stbux(Interpreter& interpreter, UGeckoInstruction inst)
   }
 }
 
+// Store byte
 void Interpreter::stbx(Interpreter& interpreter, UGeckoInstruction inst)
 {
   auto& ppc_state = interpreter.m_ppc_state;

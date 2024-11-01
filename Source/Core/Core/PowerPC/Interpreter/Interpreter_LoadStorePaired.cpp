@@ -71,6 +71,7 @@ SType ScaleAndClamp(double ps, u32 st_scale)
 template <typename T>
 static T ReadUnpaired(PowerPC::MMU& mmu, u32 addr);
 
+// Use for reading from memory
 template <>
 u8 ReadUnpaired<u8>(PowerPC::MMU& mmu, u32 addr)
 {
@@ -116,6 +117,7 @@ std::pair<u32, u32> ReadPair<u32>(PowerPC::MMU& mmu, u32 addr)
 template <typename T>
 static void WriteUnpaired(PowerPC::MMU& mmu, T val, u32 addr);
 
+// Use for storing to memory
 template <>
 void WriteUnpaired<u8>(PowerPC::MMU& mmu, u8 val, u32 addr)
 {

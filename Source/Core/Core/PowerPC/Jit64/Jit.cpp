@@ -685,7 +685,7 @@ void Jit64::Run()
 {
   ProtectStack();
   m_system.GetJitInterface().UpdateMembase();
-
+  
   CompiledCode pExecAddr = (CompiledCode)asm_routines.enter_code;
   pExecAddr();
 
@@ -943,7 +943,7 @@ bool Jit64::DoJit(u32 em_address, JitBlock* b, u32 nextPC)
   {
     IntializeSpeculativeConstants();
   }
-
+  
   // Translate instructions
   for (u32 i = 0; i < code_block.m_num_instructions; i++)
   {
