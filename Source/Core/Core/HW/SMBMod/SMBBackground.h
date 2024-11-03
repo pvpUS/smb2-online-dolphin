@@ -19,11 +19,14 @@ class SMBBackground
 {
 private:
   std::vector<u8> readToVector(std::string fileName);
+  void readSMBBackgroundFile(std::string fileName);
+
 public:
   SMBBackground(std::string tplFileName, std::string gmaFileName, std::string dspLFileName, std::string dspRFileName);
   std::vector<u8> tplFile;
   std::vector<u8> gmaFile;
   std::vector<u8> dspLFile;
   std::vector<u8> dspRFile;
+  u8 fileFormatVersion;
   Digest bgHash;
 };

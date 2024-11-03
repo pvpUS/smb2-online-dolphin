@@ -21,11 +21,12 @@ class SMBLevel
 {
 private:
   std::vector<u8> readToVector(std::string fileName);
+  void readSMBLevelFile(std::string fileName);
 public:
   SMBLevel(std::string tplFileName, std::string gmaFileName, std::string lzFileName,
-           std::string bgTplFileName, std::string bgGmaFileName, std::string bgDspFileName,
-           std::string levelName, u8 levelDifficulty, std::string author,
-           u8 fileFormatVersion);
+           std::string bgTplFileName, std::string bgGmaFileName, std::string bgDspLFileName,
+           std::string bgDspRFileName, std::string levelName, u8 levelDifficulty,
+           std::string author, u8 fileFormatVersion);
   std::vector<u8> gmaFile;
   std::vector<u8> tplFile;
   std::vector<u8> lzFile;
@@ -34,4 +35,7 @@ public:
   u8 levelDifficulty;
   std::string author;
   u8 fileFormatVersion;
+
+  // temp i think
+  std::vector<u8> hash;
 };
