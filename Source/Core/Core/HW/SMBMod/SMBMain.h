@@ -26,6 +26,7 @@ private:
   static std::queue<std::array<uint8_t, BALL_STRUCT_LENGTH>> q;
   static u16 last_time;
   static u16 frame_timer;
+  static u16 level;
   static std::atomic<bool> running;
   static std::queue<sf::Packet> send_queue;
   static std::queue<sf::Packet> receive_queue;
@@ -45,6 +46,11 @@ public:
   static size_t size();
   static void send_tcp();
   static void receive_tcp();
+  static void gameStateControl(Core::CPUThreadGuard& guard);
+  static void modifyLookupTable(Core::CPUThreadGuard& guard);
+  static void prepareMovementPacket(Core::CPUThreadGuard& guard);
+  static void readBallPositions(Core::CPUThreadGuard& guard);
+  static void initialSetup(Core::CPUThreadGuard& guard);
   static void frameLoop();
   static void readLevel();
   static void stageInjection(u64 offset, u64 length, u8* buffer);

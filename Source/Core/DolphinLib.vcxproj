@@ -72,9 +72,15 @@
     <Text Include="$(BuildInfoTemplate)" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Core\HW\SMBMod\SMBBackground.cpp" />
+    <ClCompile Include="Core\HW\SMBMod\SMBFileSystem.cpp" />
+    <ClCompile Include="Core\HW\SMBMod\SMBLevel.cpp" />
     <ClCompile Include="Core\HW\SMBMod\SMBMain.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Core\HW\SMBMod\SMBBackground.h" />
+    <ClInclude Include="Core\HW\SMBMod\SMBFileSystem.h" />
+    <ClInclude Include="Core\HW\SMBMod\SMBLevel.h" />
     <ClInclude Include="Core\HW\SMBMod\SMBMain.h" />
   </ItemGroup>
   <UsingTask TaskName="GetProductVersion" TaskFactory="CodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">

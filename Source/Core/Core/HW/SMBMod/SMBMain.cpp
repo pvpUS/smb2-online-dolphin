@@ -3,6 +3,7 @@
 std::queue<std::array<uint8_t, BALL_STRUCT_LENGTH>> SMBMain::q;
 u16 SMBMain::last_time = 0;
 u16 SMBMain::frame_timer = 0;
+u16 SMBMain::level = 1;
 int SMBMain::frame_count = 0;
 std::atomic<bool> SMBMain::running(true);
 std::queue<sf::Packet> SMBMain::send_queue;
@@ -11,7 +12,7 @@ std::mutex SMBMain::send_mutex;
 std::mutex SMBMain::receive_mutex;
 std::condition_variable SMBMain::send_cond;
 std::condition_variable SMBMain::receive_cond;
-std::vector<u64> SMBMain::starting_offsets{0x40000000, 0x41000000, 0x42000000, 0x43000000, 0x44000000};
+std::vector<u64> SMBMain::starting_offsets{0x40000000, 0x40500000, 0x41000000, 0x41500000, 0x42000000};
 std::vector<std::vector<u8>> SMBMain::level_files{};
 
 void SMBMain::push(const std::array<uint8_t, BALL_STRUCT_LENGTH>& arr)
@@ -64,6 +65,40 @@ size_t SMBMain::size()
 
 void SMBMain::frameLoop()
 {
+  Core::CPUThreadGuard guard(Core::System::GetInstance());
+
+  initialSetup(guard);
+
+  gameStateControl(guard);
+
+  readBallPositions(guard);
+
+  if (frame_count % 6 == 0) // Every 6th frame
+  {
+    prepareMovementPacket(guard);
+  }
+
+  // PanicAlertFmt("Unable to resolve write address {:x}", (u32)0x805BCB50);
+  frame_count++;
+}
+
+void SMBMain::gameStateControl(Core::CPUThreadGuard& guard)
+{
+  if (PowerPC::MMU::HostRead_U32(guard, 0x8055399C) != level)
+  {
+    level = level == 1 ? 206 : 1;
+  }
+
+  // Next Level always 1
+  PowerPC::MMU::HostWrite_U32(guard, level, 0x8055399C);
+  // Next Level always 1 (fixes initial difficulty selection stage)
+  PowerPC::MMU::HostWrite_U16(guard, level, 0x8047873A);
+  // 99 Lives always
+  PowerPC::MMU::HostWrite_U8(guard, 0x64, 0x805BC9A2);
+}
+
+void SMBMain::initialSetup(Core::CPUThreadGuard& guard)
+{
   if (frame_count == 0)
   {
     SMBMain::readLevel();
@@ -75,27 +110,41 @@ void SMBMain::frameLoop()
     receiver.detach();
   }
 
-  Core::CPUThreadGuard guard(Core::System::GetInstance());
-
   if (frame_count == 60)
   {
-    PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(0x40000000), 0x817F56D8);
-    PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(SMBMain::level_files[0].size()), 0x817F56DC);
-    PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(0x41000000), 0x817F305C);
-    PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(SMBMain::level_files[1].size()), 0x817F3060);
-    PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(0x42000000), 0x817F3050);
-    PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(SMBMain::level_files[2].size()), 0x817F3054);
-    PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(0x43000000), 0x817EFAD4);
-    PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(SMBMain::level_files[3].size()), 0x817EFAD8);
-    PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(0x44000000), 0x817EFAE0);
-    PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(SMBMain::level_files[4].size()), 0x817EFAE4);
+    modifyLookupTable(guard);
   }
+}
 
-  // Next Level always 1
-  PowerPC::MMU::HostWrite_U32(guard, 0x01, 0x8055399C);
-  // 99 Lives always
-  PowerPC::MMU::HostWrite_U8(guard, 0x64, 0x805BC9A2);
+void SMBMain::modifyLookupTable(Core::CPUThreadGuard& guard)
+{
+  // STG001 - Jungle
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(starting_offsets[0]), 0x817F56D8);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(SMBMain::level_files[0].size()), 0x817F56DC);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(starting_offsets[1]), 0x817F305C);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(SMBMain::level_files[1].size()), 0x817F3060);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(starting_offsets[2]), 0x817F3050);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(SMBMain::level_files[2].size()), 0x817F3054);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(starting_offsets[3]), 0x817EFAD4);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(SMBMain::level_files[3].size()), 0x817EFAD8);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(starting_offsets[4]), 0x817EFAE0);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(SMBMain::level_files[4].size()), 0x817EFAE4);
 
+  // STG206 - Playground
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(starting_offsets[0]), 0x817F5EC4);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(SMBMain::level_files[0].size()), 0x817F5EC8);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(starting_offsets[1]), 0x817F42BC);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(SMBMain::level_files[1].size()), 0x817F42C0);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(starting_offsets[2]), 0x817F42B0);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(SMBMain::level_files[2].size()), 0x817F42B4);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(starting_offsets[3]), 0x817EFB4C);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(SMBMain::level_files[3].size()), 0x817EFB50);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(starting_offsets[4]), 0x817EFB58);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(SMBMain::level_files[4].size()), 0x817EFB5C);
+}
+
+void SMBMain::readBallPositions(Core::CPUThreadGuard& guard)
+{
   std::unique_lock<std::mutex> lock(receive_mutex);
   while (!receive_queue.empty())
   {
@@ -125,43 +174,37 @@ void SMBMain::frameLoop()
       }
     }
   }
-
-  if (frame_count % 6 == 0)
-  {
-    
-    
-    std::array<uint8_t, BALL_STRUCT_LENGTH> arr;
-
-    int arr_pos = 0;
-    for (int i = 0; i < segments.size(); i+=2)
-    {
-      for (int pos = segments[i]; pos < segments[i + 1]; pos++)
-      {
-        u8 val = PowerPC::MMU::HostRead_U8(guard, 0x805BC9A0 + pos);
-        arr[arr_pos] = val;
-        arr_pos++;
-      }
-      
-    }
-
-    
-    if (PowerPC::MMU::HostRead_U16(guard, 0x80553974) != last_time)
-    {
-      sf::Packet packet;
-      packet.append(arr.data(), arr.size() * sizeof(uint8_t));
-      std::unique_lock<std::mutex> lock2(send_mutex);
-      send_queue.push(packet);
-      send_cond.notify_one();
-    }
-    last_time = PowerPC::MMU::HostRead_U16(guard, 0x80553974);
-    frame_timer = PowerPC::MMU::HostRead_U16(
-        guard, 0x80198c4e);  // This address almost always has a new value each frame
-
-    // PanicAlertFmt("Unable to resolve write address {:x}", (u32)0x805BCB50);
-  }
-  frame_count++;
 }
 
+void SMBMain::prepareMovementPacket(Core::CPUThreadGuard& guard)
+{
+  std::array<uint8_t, BALL_STRUCT_LENGTH> arr;
+
+  int arr_pos = 0;
+  // Compress all necessary ball struct values into a smaller array
+  for (int i = 0; i < segments.size(); i += 2)
+  {
+    for (int pos = segments[i]; pos < segments[i + 1]; pos++)
+    {
+      u8 val = PowerPC::MMU::HostRead_U8(guard, 0x805BC9A0 + pos);
+      arr[arr_pos] = val;
+      arr_pos++;
+    }
+  }
+
+  // Only send packet if level timer isn't paused (player enters goal or on a menu) (looks glitchy
+  // otherwise)
+  if (PowerPC::MMU::HostRead_U16(guard, 0x80553974) != last_time)
+  {
+    sf::Packet packet;
+    packet.append(arr.data(), arr.size() * sizeof(uint8_t));
+    std::unique_lock<std::mutex> lock2(send_mutex);
+    send_queue.push(packet);
+    send_cond.notify_one();
+  }
+  last_time = PowerPC::MMU::HostRead_U16(guard, 0x80553974);
+  frame_timer = PowerPC::MMU::HostRead_U16(guard, 0x80198c4e);  // This address almost always has a new value each frame
+}
 
 void SMBMain::send_tcp()
 {
@@ -253,10 +296,10 @@ void SMBMain::stageInjection(u64 offset, u64 length, u8* buffer)
   
   for (int i = 0; i < SMBMain::starting_offsets.size(); ++i)
   {
-    if (offset >= SMBMain::starting_offsets[i] && offset < SMBMain::starting_offsets[i] + 0x1000000)
+    if (offset >= SMBMain::starting_offsets[i] && offset < SMBMain::starting_offsets[i] + 0x500000)
     {
       u64 file_pos = offset - starting_offsets[i];
-      PanicAlertFmt("{:x}", offset);
+      //PanicAlertFmt("{:x}", offset);
 
       for (int j = file_pos; j < file_pos + length; j++)
       {
