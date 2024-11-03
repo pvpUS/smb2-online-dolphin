@@ -1,10 +1,11 @@
 #include "Core/HW/SMBMod/SMBBackground.h"
 
 SMBBackground::SMBBackground(std::string tplFileName, std::string gmaFileName,
-                             std::string dspFileName):
+                             std::string dspLFileName, std::string dspRFileName):
   tplFile(readToVector(tplFileName)),
   gmaFile(readToVector(gmaFileName)),
-  dspFile(readToVector(dspFileName)) {};
+  dspLFile(readToVector(dspLFileName)),
+  dspRFile(readToVector(dspRFileName)) {};
 
 
 std::vector<u8> SMBBackground::readToVector(std::string fileName)
