@@ -22,20 +22,16 @@ class SMBLevel
 private:
   std::vector<u8> readToVector(std::string fileName);
   void readSMBLevelFile(std::string fileName);
+
 public:
-  SMBLevel(std::string tplFileName, std::string gmaFileName, std::string lzFileName,
-           std::string bgTplFileName, std::string bgGmaFileName, std::string bgDspLFileName,
-           std::string bgDspRFileName, std::string levelName, u8 levelDifficulty,
-           std::string author, u8 fileFormatVersion);
+  SMBLevel(std::string stageFile);
+  SMBLevel();
   std::vector<u8> gmaFile;
   std::vector<u8> tplFile;
   std::vector<u8> lzFile;
-  SMBBackground background;
   std::string levelName;
   u8 levelDifficulty;
   std::string author;
   u8 fileFormatVersion;
-
-  // temp i think
-  std::vector<u8> hash;
+  Digest bgHash;
 };

@@ -1,14 +1,13 @@
 #include "Core/HW/SMBMod/SMBLevel.h"
 
-SMBLevel::SMBLevel(std::string tplFileName, std::string gmaFileName, std::string lzFileName,
-                   std::string bgTplFileName, std::string bgGmaFileName, std::string bgDspLFileName,
-                   std::string bgDspRFileName, std::string levelName, u8 levelDifficulty,
-                   std::string author, u8 fileFormatVersion)
-    : tplFile(readToVector(tplFileName)), gmaFile(readToVector(gmaFileName)),
-      lzFile(readToVector(lzFileName)),
-      background(*new SMBBackground(bgTplFileName, bgGmaFileName, bgDspLFileName, bgDspRFileName)),
-      levelName(levelName), levelDifficulty(levelDifficulty), author(author),
-      fileFormatVersion(fileFormatVersion){};
+SMBLevel::SMBLevel(std::string stageFile)
+{
+  readSMBLevelFile(stageFile);
+}
+
+SMBLevel::SMBLevel()
+{
+}
 
 std::vector<u8> SMBLevel::readToVector(std::string fileName)
 {
@@ -43,18 +42,18 @@ void SMBLevel::readSMBLevelFile(std::string fileName)
   std::vector<u8> gma;
   std::string levelBuilder;
   std::string authorBuilder;
-  for (int i = 2; i < 23; i++) // 2-22 is background SHA1
+  for (int i = 2; i < 22; i++) // 2-21 is background SHA1
   {
     shaHash.push_back(file.at(i));
   }
-  u32 tplOffset = (file.at(23) << 24) + (file.at(24) << 16) + (file.at(25) << 8) + file.at(26);
-  u32 lzOffset = (file.at(27) << 24) + (file.at(28) << 16) + (file.at(29) << 8) + file.at(30);
-  u32 levelNameOffset = 31;
+  u32 tplOffset = (file.at(22) << 24) + (file.at(23) << 16) + (file.at(24) << 8) + file.at(25);
+  u32 lzOffset = (file.at(26) << 24) + (file.at(27) << 16) + (file.at(28) << 8) + file.at(29);
+  u32 levelNameOffset = 30;
 
   // Fail if offests are out of bounds
   if (lzOffset > file.size() || tplOffset > file.size())
   {
-    PanicAlertFmt("file is corrupted!");
+    PanicAlertFmt("file is corrupted! {} {:x} {:x}", fileName, tplOffset, lzOffset);
     throw std::runtime_error("file is corrupted!");
   }
 
@@ -65,7 +64,7 @@ void SMBLevel::readSMBLevelFile(std::string fileName)
     i++;
     if (byte == 0x00)
       break;
-    else if (std::isalnum(byte))
+    else if (std::isalnum(byte) || std::ispunct(byte) || byte == ' ')
       levelBuilder += static_cast<char>(byte);
   }
 
@@ -75,24 +74,26 @@ void SMBLevel::readSMBLevelFile(std::string fileName)
     i++;
     if (byte == 0x00)
       break;
-    else if (std::isalnum(byte))
+    else if (std::isalnum(byte) || std::ispunct(byte) || byte == ' ')
       authorBuilder += static_cast<char>(byte);
   }
 
-  for (int a = i; a < tplOffset; a++) 
+  for (u32 a = i; a < tplOffset; a++) 
   {
     gma.push_back(file.at(a));
   }
-  for (int i = tplOffset; i < lzOffset; i++)
+  for (u32 a = tplOffset; a < lzOffset; a++)
   {
-    tpl.push_back(file.at(i));
+    tpl.push_back(file.at(a));
   }
-  for (int i = lzOffset; i < file.size(); i++)
+  for (u32 a = lzOffset; a < file.size(); a++)
   {
-    lz.push_back(file.at(i));
+    lz.push_back(file.at(a));
   }
 
-  hash = shaHash;
+  bgHash = *new Digest();
+  std::copy(shaHash.begin(), shaHash.end(), bgHash.begin());
+
   gmaFile = gma;
   tplFile = tpl;
   lzFile = lz;

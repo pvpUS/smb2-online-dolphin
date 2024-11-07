@@ -12,8 +12,14 @@ std::mutex SMBMain::send_mutex;
 std::mutex SMBMain::receive_mutex;
 std::condition_variable SMBMain::send_cond;
 std::condition_variable SMBMain::receive_cond;
-std::vector<u64> SMBMain::starting_offsets{0x40000000, 0x40500000, 0x41000000, 0x41500000, 0x42000000};
-std::vector<std::vector<u8>> SMBMain::level_files{};
+std::vector<u64> SMBMain::starting_offsets{0x40000000, 0x40500000, 0x41000000, 0x41500000,
+                                           0x42000000, 0x42500000, 0x43500000};
+std::vector<u8> SMBMain::musicLeft{};
+std::vector<u8> SMBMain::musicRight{};
+SMBFileSystem SMBMain::fileSystem = *new SMBFileSystem();
+bool SMBMain::gameStarted = false;
+int SMBMain::timerWriteCounter = -1;
+u8 SMBMain::lastTimeCheckValue = 0;
 
 void SMBMain::push(const std::array<uint8_t, BALL_STRUCT_LENGTH>& arr)
 {
@@ -82,12 +88,70 @@ void SMBMain::frameLoop()
   frame_count++;
 }
 
+void SMBMain::writeLevelName(Core::CPUThreadGuard& guard)
+{
+  int i = 0;
+  for (char ch : fileSystem.currentLevel.levelName)
+  {
+    u8 byte = static_cast<u8>(ch);
+    PowerPC::MMU::HostWrite_U8(guard, byte, 0x805E9BDC + i);
+    PowerPC::MMU::HostWrite_U8(guard, byte, 0x805E9CAC + i);
+    PowerPC::MMU::HostWrite_U8(guard, byte, 0x805E9B0C + i);
+    ++i;
+  }
+
+  while (i < 32)
+  {
+    PowerPC::MMU::HostWrite_U8(guard, 0x00, 0x805E9BDC + i);
+    PowerPC::MMU::HostWrite_U8(guard, 0x00, 0x805E9CAC + i);
+    PowerPC::MMU::HostWrite_U8(guard, 0x00, 0x805E9B0C + i);
+    ++i;
+  }
+}
+
 void SMBMain::gameStateControl(Core::CPUThreadGuard& guard)
 {
-  if (PowerPC::MMU::HostRead_U32(guard, 0x8055399C) != level)
+  if (PowerPC::MMU::HostRead_U32(guard, 0x8055399C) != level && gameStarted)
   {
-    level = level == 1 ? 206 : 1;
+    Digest oldHash = fileSystem.currentLevel.bgHash;
+    fileSystem.loadRandomLevel();
+    modifyLookupTableModels(guard);
+
+    bool sameBg = true;
+
+    for (int i = 0; i < 20; i++)
+    {
+      if (oldHash[i] != fileSystem.currentLevel.bgHash[i])
+      {
+        sameBg = false;
+      }
+    }
+
+    if (sameBg)
+    {
+      if (level == 1u || level == 2u)
+      {
+        level = level == 1u ? 2u : 1u;
+      }
+      else
+      {
+        level = level == 206u ? 207u : 206u;
+      }
+    }
+    else
+    {
+      level = (level == 1u || level == 2u) ? 206u : 1u;
+    }
   }
+
+  if (PowerPC::MMU::HostRead_U8(guard, 0x8054DF28) == 2)
+  {
+    gameStarted = true;
+    modifyLookupTableModels(guard);
+  }
+
+  writeLevelName(guard);
+  timerControl(guard);
 
   // Next Level always 1
   PowerPC::MMU::HostWrite_U32(guard, level, 0x8055399C);
@@ -95,13 +159,15 @@ void SMBMain::gameStateControl(Core::CPUThreadGuard& guard)
   PowerPC::MMU::HostWrite_U16(guard, level, 0x8047873A);
   // 99 Lives always
   PowerPC::MMU::HostWrite_U8(guard, 0x64, 0x805BC9A2);
+  // Always level 1 counter (level 3 doesn't show bg?)
+  PowerPC::MMU::HostWrite_U8(guard, 0x1, 0x80553991);
 }
 
 void SMBMain::initialSetup(Core::CPUThreadGuard& guard)
 {
   if (frame_count == 0)
   {
-    SMBMain::readLevel();
+    //SMBMain::readLevel();
 
     std::thread sender(SMBMain::send_tcp);
     std::thread receiver(SMBMain::receive_tcp);
@@ -109,38 +175,66 @@ void SMBMain::initialSetup(Core::CPUThreadGuard& guard)
     sender.detach();
     receiver.detach();
   }
-
-  if (frame_count == 60)
-  {
-    modifyLookupTable(guard);
-  }
+  
 }
 
-void SMBMain::modifyLookupTable(Core::CPUThreadGuard& guard)
+void SMBMain::modifyLookupTableModels(Core::CPUThreadGuard& guard)
 {
   // STG001 - Jungle
   PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(starting_offsets[0]), 0x817F56D8);
-  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(SMBMain::level_files[0].size()), 0x817F56DC);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(getFileByMemoryIndex(0).size()), 0x817F56DC);
   PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(starting_offsets[1]), 0x817F305C);
-  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(SMBMain::level_files[1].size()), 0x817F3060);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(getFileByMemoryIndex(1).size()), 0x817F3060);
   PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(starting_offsets[2]), 0x817F3050);
-  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(SMBMain::level_files[2].size()), 0x817F3054);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(getFileByMemoryIndex(2).size()), 0x817F3054);
   PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(starting_offsets[3]), 0x817EFAD4);
-  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(SMBMain::level_files[3].size()), 0x817EFAD8);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(getFileByMemoryIndex(3).size()), 0x817EFAD8);
   PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(starting_offsets[4]), 0x817EFAE0);
-  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(SMBMain::level_files[4].size()), 0x817EFAE4);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(getFileByMemoryIndex(4).size()), 0x817EFAE4);
+
+  // STG002 - Jungle
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(starting_offsets[0]), 0x817F56E4);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(getFileByMemoryIndex(0).size()), 0x817F56E8);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(starting_offsets[1]), 0x817F3074);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(getFileByMemoryIndex(1).size()), 0x817F3078);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(starting_offsets[2]), 0x817F3068);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(getFileByMemoryIndex(2).size()), 0x817F306C);
 
   // STG206 - Playground
   PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(starting_offsets[0]), 0x817F5EC4);
-  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(SMBMain::level_files[0].size()), 0x817F5EC8);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(getFileByMemoryIndex(0).size()), 0x817F5EC8);
   PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(starting_offsets[1]), 0x817F42BC);
-  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(SMBMain::level_files[1].size()), 0x817F42C0);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(getFileByMemoryIndex(1).size()), 0x817F42C0);
   PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(starting_offsets[2]), 0x817F42B0);
-  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(SMBMain::level_files[2].size()), 0x817F42B4);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(getFileByMemoryIndex(2).size()), 0x817F42B4);
   PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(starting_offsets[3]), 0x817EFB4C);
-  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(SMBMain::level_files[3].size()), 0x817EFB50);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(getFileByMemoryIndex(3).size()), 0x817EFB50);
   PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(starting_offsets[4]), 0x817EFB58);
-  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(SMBMain::level_files[4].size()), 0x817EFB5C);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(getFileByMemoryIndex(4).size()), 0x817EFB5C);
+
+
+  // STG207 - Playground
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(starting_offsets[0]), 0x817F5ED0);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(getFileByMemoryIndex(0).size()), 0x817F5ED4);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(starting_offsets[1]), 0x817F42D4);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(getFileByMemoryIndex(1).size()), 0x817F42D8);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(starting_offsets[2]), 0x817F42C8);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(getFileByMemoryIndex(2).size()), 0x817F42CC);
+}
+
+void SMBMain::modifyLookupTableMusic(Core::CPUThreadGuard& guard)
+{
+  // Jungle
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(starting_offsets[5]), 0x817F1214);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(getFileByMemoryIndex(5).size()), 0x817F1218);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(starting_offsets[6]), 0x817F1220);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(getFileByMemoryIndex(6).size()), 0x817F1224);
+
+  // Amusement Park
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(starting_offsets[5]), 0x817F1B44);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(getFileByMemoryIndex(5).size()), 0x817F1B48);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(starting_offsets[6]), 0x817F1B50);
+  PowerPC::MMU::HostWrite_U32(guard, static_cast<u32>(getFileByMemoryIndex(6).size()), 0x817F1B54);
 }
 
 void SMBMain::readBallPositions(Core::CPUThreadGuard& guard)
@@ -264,48 +358,80 @@ void SMBMain::receive_tcp()
   }
 }
 
-void SMBMain::readLevel()
+std::vector<u8> SMBMain::getFileByMemoryIndex(int index)
 {
-  std::vector<std::string> file_names = {"STAGE201.lz", "st201.tpl", "st201.gma", "bg201.gma", "bg201.tpl"};
-
-  for (int i = 0; i < file_names.size(); i++)
+  switch (index)
   {
-    std::ifstream file("levels/" + file_names[i], std::ios::binary | std::ios::ate);
-    if (!file.is_open())
-    {
-      PanicAlertFmt("file couldnt open!");
-      throw std::runtime_error("Could not open file.");
-    }
-
-    std::streamsize size = file.tellg();
-    file.seekg(0, std::ios::beg);
-
-    std::vector<u8> buffer(size);
-    if (!file.read(reinterpret_cast<char*>(buffer.data()), size))
-    {
-      PanicAlertFmt("file couldnt read!");
-      throw std::runtime_error("Could not read file.");
-    }
-
-    level_files.push_back(buffer);
+  case 0:
+    return fileSystem.currentLevel.lzFile;
+    break;
+  case 1:
+    return fileSystem.currentLevel.tplFile;
+    break;
+  case 2:
+    return fileSystem.currentLevel.gmaFile;
+    break;
+  case 3:
+    return fileSystem.backgrounds.at(fileSystem.currentLevel.bgHash).gmaFile;
+    break;
+  case 4:
+    return fileSystem.backgrounds.at(fileSystem.currentLevel.bgHash).tplFile;
+    break;
+  case 5:
+    return musicLeft;
+    break;
+  default: //6 or others for safety
+    return musicRight;
+    break;
   }
 }
 
+void SMBMain::timerControl(Core::CPUThreadGuard& guard)
+{
+  if (timerWriteCounter > -1)
+  {
+    timerWriteCounter--;
+  }
+
+  if (timerWriteCounter == 0)
+  {
+    PowerPC::MMU::HostWrite_U16(guard, 0x1770, 0x80553974);
+  }
+
+  u8 currentValue = PowerPC::MMU::HostRead_U8(guard, 0x80446BF0); // This byte changes to 4 right before the level begins panning in
+
+  if (currentValue != lastTimeCheckValue)
+  {
+    timerWriteCounter = 20;
+  }
+
+  lastTimeCheckValue = PowerPC::MMU::HostRead_U8(guard, 0x80446BF0);
+};
+
 void SMBMain::stageInjection(u64 offset, u64 length, u8* buffer)
 {
+
+  if (offset == SMBMain::starting_offsets[0]) // Happens once per level load
+  {
+    
+    Core::CPUThreadGuard guard(Core::System::GetInstance());
+    musicLeft = fileSystem.backgrounds.at(fileSystem.currentLevel.bgHash).dspLFile;
+    musicRight = fileSystem.backgrounds.at(fileSystem.currentLevel.bgHash).dspRFile;
+    modifyLookupTableMusic(guard);
+  }
   
   for (int i = 0; i < SMBMain::starting_offsets.size(); ++i)
   {
-    if (offset >= SMBMain::starting_offsets[i] && offset < SMBMain::starting_offsets[i] + 0x500000)
+    if (offset >= SMBMain::starting_offsets[i] && (offset < SMBMain::starting_offsets[i] + 0x500000 || ((i == 5 || i == 6) && offset < SMBMain::starting_offsets[i] + 0x1000000)))
     {
       u64 file_pos = offset - starting_offsets[i];
-      //PanicAlertFmt("{:x}", offset);
+      std::vector<u8> file = getFileByMemoryIndex(i);
 
       for (int j = file_pos; j < file_pos + length; j++)
       {
-        if (j < SMBMain::level_files[i].size())
+        if (j < file.size())
         {
-          *buffer = SMBMain::level_files[i][j];
+          *buffer = file.at(j);
           buffer++;
         }
       }

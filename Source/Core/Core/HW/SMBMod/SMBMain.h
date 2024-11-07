@@ -14,6 +14,7 @@
 #include <atomic>
 #include <SFML/Network.hpp>
 #include <fstream>
+#include <Core/HW/SMBMod/SMBFileSystem.h>
 
 const size_t BALL_STRUCT_LENGTH = 46;
 const size_t QUEUE_CAPACITY = 100;
@@ -34,7 +35,12 @@ private:
   static std::mutex receive_mutex;
   static std::condition_variable send_cond;
   static std::condition_variable receive_cond;
-  static std::vector<std::vector<u8>> level_files;
+  static std::vector<u8> musicLeft;
+  static std::vector<u8> musicRight;
+  static SMBFileSystem fileSystem;
+  static bool gameStarted;
+  static int timerWriteCounter;
+  static u8 lastTimeCheckValue;
 
 public:
   static int frame_count;
@@ -47,11 +53,14 @@ public:
   static void send_tcp();
   static void receive_tcp();
   static void gameStateControl(Core::CPUThreadGuard& guard);
-  static void modifyLookupTable(Core::CPUThreadGuard& guard);
+  static void modifyLookupTableModels(Core::CPUThreadGuard& guard);
+  static void modifyLookupTableMusic(Core::CPUThreadGuard& guard);
   static void prepareMovementPacket(Core::CPUThreadGuard& guard);
   static void readBallPositions(Core::CPUThreadGuard& guard);
   static void initialSetup(Core::CPUThreadGuard& guard);
   static void frameLoop();
-  static void readLevel();
+  static void writeLevelName(Core::CPUThreadGuard& guard);
   static void stageInjection(u64 offset, u64 length, u8* buffer);
+  static std::vector<u8> getFileByMemoryIndex(int index);
+  static void timerControl(Core::CPUThreadGuard& guard);
 };

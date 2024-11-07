@@ -1,11 +1,13 @@
 #include "Core/HW/SMBMod/SMBBackground.h"
 
-SMBBackground::SMBBackground(std::string tplFileName, std::string gmaFileName,
-                             std::string dspLFileName, std::string dspRFileName):
-  tplFile(readToVector(tplFileName)),
-  gmaFile(readToVector(gmaFileName)),
-  dspLFile(readToVector(dspLFileName)),
-  dspRFile(readToVector(dspRFileName)) {};
+SMBBackground::SMBBackground(std::string backgroundFile)
+{
+  readSMBBackgroundFile(backgroundFile);
+}
+
+SMBBackground::SMBBackground()
+{
+}
 
 
 std::vector<u8> SMBBackground::readToVector(std::string fileName)
@@ -47,23 +49,23 @@ void SMBBackground::readSMBBackgroundFile(std::string fileName)
   if (!(tplOffset > gmaOffset && dspLOffset > tplOffset && dspROffset > dspLOffset) ||
       gmaOffset > file.size() || tplOffset > file.size() || dspLOffset > file.size() || dspROffset > file.size())
   {
-    PanicAlertFmt("file is corrupted!");
+    PanicAlertFmt("file is corrupted! {}", fileName);
     throw std::runtime_error("file is corrupted!");
   }
 
-  for (int i = gmaOffset; i < tplOffset; i++)
+  for (u32 i = gmaOffset; i < tplOffset; i++)
   {
     gma.push_back(file.at(i));
   }
-  for (int i = tplOffset; i < dspLOffset; i++)
+  for (u32 i = tplOffset; i < dspLOffset; i++)
   {
     tpl.push_back(file.at(i));
   }
-  for (int i = dspLOffset; i < dspROffset; i++)
+  for (u32 i = dspLOffset; i < dspROffset; i++)
   {
     dspL.push_back(file.at(i));
   }
-  for (int i = dspROffset; i < file.size(); i++)
+  for (u32 i = dspROffset; i < file.size(); i++)
   {
     dspR.push_back(file.at(i));
   }
@@ -73,5 +75,6 @@ void SMBBackground::readSMBBackgroundFile(std::string fileName)
   dspLFile = dspL;
   dspRFile = dspR;
   fileFormatVersion = version;
+  bgHash = Common::SHA1::CalculateDigest(file);
 }
 

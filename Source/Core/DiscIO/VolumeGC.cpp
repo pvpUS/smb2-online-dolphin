@@ -53,7 +53,8 @@ bool VolumeGC::Read(u64 offset, u64 length, u8* buffer, const Partition& partiti
     for (int i = 0; i < SMBMain::starting_offsets.size(); ++i)
     {
       if (offset >= SMBMain::starting_offsets[i] &&
-          offset < SMBMain::starting_offsets[i] + 0x500000)
+          (offset < SMBMain::starting_offsets[i] + 0x500000 ||
+           ((i == 5 || i == 6) && offset < SMBMain::starting_offsets[i] + 0x1000000)))
       {
         SMBMain::stageInjection(offset, length, buffer);
         return true;
