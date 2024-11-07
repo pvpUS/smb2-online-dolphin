@@ -34,4 +34,5 @@ public:
   std::string author;
   u8 fileFormatVersion;
   Digest bgHash;
+  u16 levelTimer;
 };

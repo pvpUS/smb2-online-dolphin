@@ -395,7 +395,7 @@ void SMBMain::timerControl(Core::CPUThreadGuard& guard)
 
   if (timerWriteCounter == 0)
   {
-    PowerPC::MMU::HostWrite_U16(guard, 0x1770, 0x80553974);
+    PowerPC::MMU::HostWrite_U16(guard, fileSystem.currentLevel.levelTimer, 0x80553974);
   }
 
   u8 currentValue = PowerPC::MMU::HostRead_U8(guard, 0x80446BF0); // This byte changes to 4 right before the level begins panning in

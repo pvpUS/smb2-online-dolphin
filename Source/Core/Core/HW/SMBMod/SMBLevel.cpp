@@ -35,6 +35,7 @@ void SMBLevel::readSMBLevelFile(std::string fileName)
   std::vector<u8> file = readToVector(fileName);
   u8 version = file.at(0);
   u8 difficulty = file.at(1);
+  u16 timer = (file.at(2) << 8) + file.at(3);
 
   std::vector<u8> shaHash;
   std::vector<u8> tpl;
@@ -42,13 +43,14 @@ void SMBLevel::readSMBLevelFile(std::string fileName)
   std::vector<u8> gma;
   std::string levelBuilder;
   std::string authorBuilder;
-  for (int i = 2; i < 22; i++) // 2-21 is background SHA1
+ 
+  for (int i = 4; i < 24; i++) // 2-21 is background SHA1
   {
     shaHash.push_back(file.at(i));
   }
-  u32 tplOffset = (file.at(22) << 24) + (file.at(23) << 16) + (file.at(24) << 8) + file.at(25);
-  u32 lzOffset = (file.at(26) << 24) + (file.at(27) << 16) + (file.at(28) << 8) + file.at(29);
-  u32 levelNameOffset = 30;
+  u32 tplOffset = (file.at(25) << 24) + (file.at(26) << 16) + (file.at(27) << 8) + file.at(28);
+  u32 lzOffset = (file.at(29) << 24) + (file.at(30) << 16) + (file.at(31) << 8) + file.at(32);
+  u32 levelNameOffset = 33;
 
   // Fail if offests are out of bounds
   if (lzOffset > file.size() || tplOffset > file.size())
@@ -101,5 +103,6 @@ void SMBLevel::readSMBLevelFile(std::string fileName)
   author = authorBuilder;
   levelDifficulty = difficulty;
   fileFormatVersion = version;
+  levelTimer = timer;
 }
 
